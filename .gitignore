@@ -1,0 +1,119 @@
+# These are some examples of commonly ignored file patterns.
+# You should customize this list as applicable to your project.
+# Learn more about .gitignore:
+#     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+metro-debug.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Dependency directories
+node_modules/
+Pods/
+.buckconfig.local
+
+# Build directories
+android/.gradle/
+android/app/build/
+android/build/
+android/app/.cxx/
+android/app/.externalNativeBuild/
+ios/Pods/
+ios/build/
+ios/DerivedData/
+ios/*.xcodeproj/project.xcworkspace/
+ios/*.xcodeproj/xcuserdata/
+dist/
+target/
+
+# Specific files to ignore
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*.temp
+*.tmp
+
+# Compiled files
+*.class
+*.py[cod]
+
+# Bundled JS files
+index.android.bundle
+index.ios.bundle
+index.bundle
+*.js.map
+
+# React Native Packager
+.packager-store/
+.expo/
+.expo-shared/
+
+# Firebase or Google Services
+android/app/google-services.json
+ios/GoogleService-Info.plist
+
+# Lockfiles
+package-lock.json
+yarn.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Lint and debugging
+.eslintcache
+.prettiercache
+
+# Generated schema
+/schema.graphql
+
+# Hermès build artifacts
+android/app/hermes-profile/
+android/app/sourcemaps/
+
+# Temporary settings for metro
+cache/
+
+# JetBrains IDE
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Unit test reports
+TEST*.xml
+
+# Applications
+*.app
+*.exe
+*.war
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
+
+# Maven
+*.jar
+
+# Translations
+translations/*.json
