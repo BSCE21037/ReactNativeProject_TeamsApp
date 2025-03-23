@@ -77,21 +77,56 @@ const ChatArea = ({
         return 'Message';
     };
 
-    const handleJiraButtonPress = () => {
-        if (messageText.trim()) {
-            const newMessage = {
-                id: Date.now().toString(),
-                sender: 'System',
-                text: `Task: "${messageText}" was added to Jira`,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isSystemMessage: true,
-                reactions: {}
-            };
-            updateMessages(newMessage);
-            setMessageText("");
-            scrollViewRef.current?.scrollToEnd({ animated: true });
+    const handleJiraButtonPress = async () => {
+        if (!messageText.trim()) return;
+    
+        const jiraDomain = "https://teamsapp.atlassian.net";
+        const apiEndpoint = `${jiraDomain}/rest/api/3/issue`;
+        const authToken = "lNjiYMVGZUQswwjwjdNmSIoB4MB6L7Wr"; // Replace with actual base64 token
+    
+        const issueData = {
+            fields: {
+                project: { key: "SCRUM" }, // Your project key
+                summary: messageText, // User-entered text as issue title
+                description: { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: messageText }] }] },
+                issuetype: { name: "Task" } // You can change this to Bug, Story, etc.
+            }
+        };
+    
+        try {
+            const response = await fetch(apiEndpoint, {
+                method: "POST",
+                headers: {
+                    "Authorization": authToken,
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(issueData)
+            });
+    
+            const result = await response.json();
+    
+            if (response.ok) {
+                const newMessage = {
+                    id: Date.now().toString(),
+                    sender: "System",
+                    text: `Task: "${messageText}" was successfully added to Jira with ID: ${result.key}`,
+                    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                    isSystemMessage: true,
+                    reactions: {}
+                };
+                updateMessages(newMessage);
+            } else {
+                console.error("Failed to create issue:", result);
+            }
+        } catch (error) {
+            console.error("Error posting issue to Jira:", error);
         }
+    
+        setMessageText("");
+        scrollViewRef.current?.scrollToEnd({ animated: true });
     };
+    
 
     const handleReaction = (messageId, emoji) => {
         if (!messageId || !emoji) return;
