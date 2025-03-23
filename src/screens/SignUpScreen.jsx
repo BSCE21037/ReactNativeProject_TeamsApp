@@ -1,7 +1,14 @@
 import React, {useState} from "react";
-import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Alert } from "react-native";
 import CustomTextInput from "../components/CustomSignIn";
 import CustomPressable from "../components/CustomWelcome";
+import { commonStyles } from '../styles'; // Adjust the path as necessary
+import LinearGradient from 'react-native-linear-gradient'; // Import LinearGradient
+import Icon from 'react-native-vector-icons/FontAwesome'; // Import FontAwesome for the Google icon
+import { auth } from "./../../firebaseConfig";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { db } from "./../../firebaseConfig";
+import { doc, setDoc } from "firebase/firestore";
 
 const SignUpScreen = ({ navigation }) => {
     const [name, setName] = useState("");
@@ -9,8 +16,43 @@ const SignUpScreen = ({ navigation }) => {
     const [password, setPassword] = useState("");
     const [isPrivacyAccepted, setIsPrivacyAccepted] = useState(false);
 
+    const handleSignUp = async () => {
+        if (!isPrivacyAccepted) {
+            Alert.alert("Privacy Policy", "Please read and accept the Privacy Policy to continue.");
+            return;
+        }
+        if (!password || !email || !name) {
+            console.log("NOt Properly Entered");
+            Alert.alert("Enter All Entries!");
+            return;
+        }
+
+        try {
+            console.log("Trying to create user");
+            await createUserWithEmailAndPassword(auth, email, password);
+            Alert.alert("Success", "Account created successfully!");
+            console.log("Successfully REgistered IN");
+            navigation.navigate("Main");
+            await setDoc(doc(db, "users", email), {
+                email: email,
+                name: name,
+                selectedTopics: [],
+            });
+            
+
+            //   navigation.navigate("Login"); // Navigate to login page
+        } catch (error) {
+            console.log(error.message);
+            Alert.alert("Signup Failed", error.message);
+        }
+        
+    };
+
     return(
-        <View style={styles.container}>
+        <LinearGradient 
+            colors={['#FF0000', '#00FF00']}
+            style={commonStyles.container}
+        >
             {/* Back Button */}
             <TouchableOpacity 
                 style={styles.backButton} 
@@ -21,15 +63,19 @@ const SignUpScreen = ({ navigation }) => {
 
             <Text style={styles.title}>Create your account</Text>
             
-            {/* Social Login Button */}
             <CustomPressable
-                title="CONTINUE WITH GOOGLE"
+                title={
+                    <View style={styles.googleButtonContent}>
+                        <Icon name="google" size={20} color="#8B3535" style={styles.googleIcon} /> {/* Google icon */}
+                        <Text style={styles.googleText}>CONTINUE WITH GOOGLE</Text>
+                    </View>
+                }
                 onPress={() => {}}
                 style={[styles.socialButton, styles.googleButton]}
                 textStyle={[styles.socialButtonText, styles.googleText]}
             />
 
-            <Text style={styles.orText}>OR LOG IN WITH EMAIL</Text>
+            <Text style={styles.orText}>OR SIGN UP WITH EMAIL</Text>
 
             {/* Input Fields */}
             <CustomTextInput
@@ -72,11 +118,11 @@ const SignUpScreen = ({ navigation }) => {
             {/* Sign Up Button */}
             <CustomPressable
                 title="GET STARTED"
-                onPress={() => navigation.navigate('Main')}
+                onPress={handleSignUp}
                 style={styles.signupButton}
                 textStyle={styles.signupButtonText}
             />
-        </View>
+        </LinearGradient>
     );
 };
 
@@ -115,6 +161,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderWidth: 1,
         borderColor: '#8B3535', // Deep red border
+    },
+    googleButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    googleIcon: {
+        marginRight: 10, // Space between the icon and text
     },
     googleText: {
         color: '#8B3535', // Deep red text

@@ -1,14 +1,79 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import CustomTextInput from "../components/CustomSignIn";
 import CustomPressable from "../components/CustomWelcome";
+import { commonStyles } from '../styles'; // Adjust the path as necessary
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { auth, WEB_CLIENT_ID, db } from '../../firebaseConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SignInScreen = ({ navigation }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
+    useEffect(() => {
+        GoogleSignin.configure({
+          webClientId: WEB_CLIENT_ID,
+          offlineAccess: true,
+          forceCodeForRefreshToken: true,
+        });
+      }, []);
+
+        // Google Sign-In
+    const handleGoogleSignIn = async () => {
+        try {
+        await GoogleSignin.hasPlayServices();
+        
+        const { data } = await GoogleSignin.signIn();
+
+        if (!data.idToken) {
+            throw new Error('No ID token found');
+        }
+        const googleCredential = GoogleAuthProvider.credential(data.idToken);
+        const userCredential = await signInWithCredential(auth, googleCredential);
+        const user = userCredential.user;
+        
+        console.log("Google Sign-In Successful!");
+
+        // Check if user already exists in Firestore
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+            // Add a new document to Firestore with user data
+            await setDoc(userRef, {
+            uid: user.uid,
+            name: user.displayName || user.name,
+            email: user.email || user.email,
+            address: "",
+            photoURL: user.photoURL || "",
+            createdAt: new Date(),
+            favorites: [],
+            });
+            console.log("User added to Firestore!");
+            Alert.alert("Success", "User account created!");
+        } else {
+            console.log("User already exists in Firestore");
+        }
+
+        // Save user data in AsyncStorage
+        await AsyncStorage.setItem("user", JSON.stringify(user));
+        console.log("User saved to AsyncStorage!");
+
+        navigation.navigate("Main");
+        } catch (error) {
+        console.log('Google Sign-In Error:', error);
+        }
+    };
+
+
     return(
-        <View style={styles.container}>
+        <LinearGradient 
+            colors={['#FF0000', '#00FF00']} // Red to Green gradient
+            style={commonStyles.container}
+        >
             {/* Back Button */}
             <TouchableOpacity 
                 style={styles.backButton} 
@@ -21,8 +86,13 @@ const SignInScreen = ({ navigation }) => {
             
             {/* Social Login Button */}
             <CustomPressable
-                title="CONTINUE WITH GOOGLE"
-                onPress={() => {}}
+                title={
+                    <View style={styles.googleButtonContent}>
+                        <Icon name="google" size={20} color="#8B3535" style={styles.googleIcon} />
+                        <Text style={styles.googleText}>CONTINUE WITH GOOGLE</Text>
+                    </View>
+                }
+                onPress={handleGoogleSignIn}
                 style={[styles.socialButton, styles.googleButton]}
                 textStyle={[styles.socialButtonText, styles.googleText]}
             />
@@ -65,7 +135,7 @@ const SignInScreen = ({ navigation }) => {
                     <Text style={styles.signupLink}>SIGN UP</Text>
                 </TouchableOpacity>
             </View>
-        </View>
+        </LinearGradient>
     );
 };
 
@@ -168,6 +238,13 @@ const styles = StyleSheet.create({
         color: '#8B3535', // Deep red link
         fontSize: 14,
         fontWeight: '700',
+    },
+    googleButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    googleIcon: {
+        marginRight: 10,
     },
 });
 
