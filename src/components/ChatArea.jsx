@@ -3,8 +3,9 @@ import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, Modal,
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import EmojiSelector from 'react-native-emoji-selector';
-import DocumentPicker from 'react-native-document-picker';
+import DocumentPicker from '@react-native-documents/picker';
 import * as ImagePicker from 'react-native-image-picker';
+import jira from '../services/jiraService';
 
 const ChatArea = ({ 
     channelMessages,
@@ -22,6 +23,7 @@ const ChatArea = ({
     const [showFilePicker, setShowFilePicker] = useState(false);
     const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
     const [activeMessageId, setActiveMessageId] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     const QUICK_REACTIONS = ['👍', '❤️', '😊', '😂', '🎉', '👏'];
 
@@ -77,56 +79,68 @@ const ChatArea = ({
         return 'Message';
     };
 
+    // const authenticateWithJira = async () => {
+    //     setIsAuthenticating(true);
+    //     try {
+    //       // You'll need to implement the OAuth dance here
+    //       // This is a simplified version - you'll need to adapt it
+    //       const response = await fetch('https://teamsapp.atlassian.net/jira/oauth');
+    //       const { token, secret } = await response.json();
+    //       setJiraTokens(token, secret);
+    //     } catch (error) {
+    //       Alert.alert('Authentication Failed', error.message);
+    //     } finally {
+    //       setIsAuthenticating(false);
+    //     }
+    //   };
+    
+
+
     const handleJiraButtonPress = async () => {
         if (!messageText.trim()) return;
     
-        const jiraDomain = "https://teamsapp.atlassian.net";
-        const apiEndpoint = `${jiraDomain}/rest/api/3/issue`;
-        const authToken = "lNjiYMVGZUQswwjwjdNmSIoB4MB6L7Wr"; // Replace with actual base64 token
-    
-        const issueData = {
-            fields: {
-                project: { key: "SCRUM" }, // Your project key
-                summary: messageText, // User-entered text as issue title
-                description: { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: messageText }] }] },
-                issuetype: { name: "Task" } // You can change this to Bug, Story, etc.
-            }
-        };
-    
+        setIsLoading(true);
         try {
-            const response = await fetch(apiEndpoint, {
-                method: "POST",
-                headers: {
-                    "Authorization": authToken,
-                    "Accept": "application/json",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(issueData)
-            });
+        //   // Get issue example
+        //   const issue = await jira.getIssue('SCRUM-1');
+          
+          // Or create a new issue
+          // Create a new issue
+    const response = await jira.createIssue({
+      fields: {
+        summary: messageText,
+        issuetype: {
+          name: 'Task'
+        },
+        project: {
+          key: 'SCRUM',
+        },
+      }
+    });
     
-            const result = await response.json();
+          const newMessage = {
+            id: Date.now().toString(),
+            sender: 'System',
+            text: `Created Jira Issue: ${response.key || response.id}`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isSystemMessage: true
+          };
     
-            if (response.ok) {
-                const newMessage = {
-                    id: Date.now().toString(),
-                    sender: "System",
-                    text: `Task: "${messageText}" was successfully added to Jira with ID: ${result.key}`,
-                    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                    isSystemMessage: true,
-                    reactions: {}
-                };
-                updateMessages(newMessage);
-            } else {
-                console.error("Failed to create issue:", result);
-            }
+          updateMessages(newMessage);
+          setMessageText('');
         } catch (error) {
-            console.error("Error posting issue to Jira:", error);
+            Alert.alert(
+            'Jira Error',
+            error.response?.data?.errorMessages?.join('\n') || 
+            error.response?.data?.message || 
+            error.message
+            );
+        } finally {
+          setIsLoading(false);
         }
-    
-        setMessageText("");
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-    };
-    
+      };
+
+
 
     const handleReaction = (messageId, emoji) => {
         if (!messageId || !emoji) return;
@@ -371,9 +385,12 @@ const ChatArea = ({
                         <TouchableOpacity 
                             style={styles.jiraButton}
                             onPress={handleJiraButtonPress}
+                            disabled={isLoading}
                         >
                             <MaterialIcon name="jira" size={22} color="#2684FF" />
-                            <Text style={styles.jiraButtonText}>Jira</Text>
+                            <Text style={styles.jiraButtonText}>
+                            {isLoading ? 'Working with Jira...' : 'Jira'}
+                            </Text>
                         </TouchableOpacity>
                         <TouchableOpacity 
                             style={styles.sendButton}
