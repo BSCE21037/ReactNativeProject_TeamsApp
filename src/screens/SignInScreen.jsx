@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from "react-native";
 import CustomTextInput from "../components/CustomSignIn";
 import CustomPressable from "../components/CustomWelcome";
-import { commonStyles } from '../styles'; // Adjust the path as necessary
+import { commonStyles } from '../styles';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';

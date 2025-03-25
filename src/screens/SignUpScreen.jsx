@@ -102,7 +102,6 @@ const SignUpScreen = ({ navigation }) => {
                 placeholderTextColor="rgba(255, 255, 255, 0.5)"
             />
 
-            {/* Privacy Policy Checkbox */}
             <View style={styles.privacyContainer}>
                 <TouchableOpacity 
                     style={styles.checkbox}
@@ -115,7 +114,6 @@ const SignUpScreen = ({ navigation }) => {
                 </Text>
             </View>
 
-            {/* Sign Up Button */}
             <CustomPressable
                 title="GET STARTED"
                 onPress={handleSignUp}
@@ -181,16 +179,16 @@ const styles = StyleSheet.create({
     inputContainer: {
         marginBottom: 15,
         borderRadius: 15,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)', // Semi-transparent white
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         borderWidth: 1,
-        borderColor: '#8B3535', // Deep red border
+        borderColor: '#8B3535',
         height: 60,
         justifyContent: 'center',
     },
     input: {
         padding: 15,
         fontSize: 16,
-        color: '#fff', // Changed to white
+        color: '#fff',
         height: '100%',
         textAlignVertical: 'center',
     },

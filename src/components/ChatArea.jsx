@@ -8,6 +8,7 @@ import * as ImagePicker from 'react-native-image-picker';
 import jira from '../services/jiraService';
 
 const ChatArea = ({ 
+    navigation,
     channelMessages,
     setChannelMessages,
     dmMessages,
@@ -16,7 +17,7 @@ const ChatArea = ({
     setShowEmojiPicker,
     toggleDrawer,
     selectedChannel,
-    selectedDM
+    selectedDM,
 }) => {
     const [messageText, setMessageText] = useState("");
     const scrollViewRef = useRef();
@@ -391,6 +392,12 @@ const ChatArea = ({
                             <Text style={styles.jiraButtonText}>
                             {isLoading ? 'Working with Jira...' : 'Jira'}
                             </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            style={styles.standupButton}
+                            onPress={() => navigation.navigate('StandUpBot')}
+                        >
+                            <Text style={styles.jiraButtonText}>Daily Stand-Up</Text>
                         </TouchableOpacity>
                         <TouchableOpacity 
                             style={styles.sendButton}
@@ -792,6 +799,13 @@ const styles = StyleSheet.create({
     },
     emojiText: {
         fontSize: 24,
+    },
+    standupButton: {
+        backgroundColor: '#0052CC',
+        padding: 15,
+        borderRadius: 5,
+        alignItems: 'center',
+        marginTop: 20,
     },
 });
 

@@ -5,7 +5,7 @@ import ChatArea from '../components/ChatArea';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.75;
 
-const MainScreen = () => {
+const MainScreen = ({navigation}) => {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [selectedChannel, setSelectedChannel] = useState('general');
     const [selectedDM, setSelectedDM] = useState(null);
@@ -13,7 +13,7 @@ const MainScreen = () => {
     const [messages, setMessages] = useState([
         {
             id: '1',
-            sender: 'Adolf Niggler',
+            sender: 'Random Bot',
             text: 'Hello team! How is everyone doing today?',
             time: '12:30 PM',
             reactions: {}
@@ -64,6 +64,7 @@ const MainScreen = () => {
             )}
 
             <ChatArea 
+                navigation={navigation}
                 channelMessages={channelMessages}
                 setChannelMessages={setChannelMessages}
                 dmMessages={dmMessages}
