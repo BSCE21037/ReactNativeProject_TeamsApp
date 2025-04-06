@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -6,6 +6,8 @@ import EmojiSelector from 'react-native-emoji-selector';
 import DocumentPicker from '@react-native-documents/picker';
 import * as ImagePicker from 'react-native-image-picker';
 import jira from '../services/jiraService';
+import firestore from '@react-native-firebase/firestore';
+import { auth, db } from '../../firebaseConfig';
 
 const ChatArea = ({ 
     navigation,
@@ -27,16 +29,55 @@ const ChatArea = ({
     const [isLoading, setIsLoading] = useState(false);
 
     const QUICK_REACTIONS = ['👍', '❤️', '😊', '😂', '🎉', '👏'];
+    // Replace your existing message state and handlers with:
 
-    // Helper function to get current messages
-    const getCurrentMessages = () => {
-        if (selectedChannel) {
-            return channelMessages[selectedChannel] || [];
-        } else if (selectedDM) {
-            return dmMessages[selectedDM.id] || [];
+    const [messages, setMessages] = useState([]);
+
+    // Load messages on mount
+    useEffect(() => {
+        if (!selectedChannel && !selectedDM?.id){
+            Alert.alert("Error", "No channel or DM selected");
+            return;
         }
-        return [];
-    };
+      
+        const unsubscribe = firestore()
+          .collection('chats')
+          .doc(selectedChannel || selectedDM?.id)
+          .collection('messages')
+          .orderBy('createdAt', 'asc')
+          .onSnapshot(
+            (snapshot) => {
+              const loadedMessages = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }));
+              setMessages(loadedMessages);
+            },
+            (error) => {
+              if (error.code === 'permission-denied') {
+                Alert.alert("Permission Error", "Please login to view messages");
+              } else {
+                Alert.alert("Error", "Failed to load messages");
+              }
+            }
+          );
+          console.log("Attempting to send message...");
+            console.log("Selected channel/DM:", selectedChannel || selectedDM?.id);
+      
+        return () => unsubscribe();
+        
+      }, [selectedChannel, selectedDM?.id]);
+
+
+    // // Helper function to get current messages
+    // const getCurrentMessages = () => {
+    //     if (selectedChannel) {
+    //         return channelMessages[selectedChannel] || [];
+    //     } else if (selectedDM) {
+    //         return dmMessages[selectedDM.id] || [];
+    //     }
+    //     return [];
+    // };
 
     // Helper function to update messages
     const updateMessages = (newMessage) => {
@@ -53,22 +94,47 @@ const ChatArea = ({
         }
     };
 
-    // Update your message handlers to use these helper functions
-    const handleSendMessage = () => {
-        if (messageText.trim()) {
-            const newMessage = {
-                id: Date.now().toString(),
-                sender: 'Your Name',
-                text: messageText,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isSystemMessage: false,
-                reactions: {}
-            };
-            updateMessages(newMessage);
-            setMessageText('');
-            scrollViewRef.current?.scrollToEnd({ animated: true });
+    const handleSendMessage = async () => {
+        console.log("Sending message:", messageText);
+        console.log("Selected channel/DM:", selectedChannel || selectedDM?.id);
+        if (!messageText.trim()) {
+          Alert.alert("Error", "Message cannot be empty");
+          return;
         }
-    };
+        
+        const user = auth.currentUser;
+        console.log("Current user:", user);
+        if (!user) {
+          Alert.alert("Error", "You must be logged in to send messages");
+          return;
+        }
+      
+        try {
+          setIsLoading(true);
+          
+          const chatRef = firestore()
+            .collection('chats') // Removed incorrect db parameter
+            .doc(selectedChannel || selectedDM?.id)
+            .collection('messages');
+      
+          await chatRef.add({
+            text: messageText,
+            sender: user.displayName || user.email,
+            userId: user.uid,
+            createdAt: firestore.FieldValue.serverTimestamp(),
+            isSystemMessage: false
+          });
+      
+          setMessageText('');
+        //   Alert.alert("Success", "Message sent successfully");
+        } catch (error) {
+          console.error("Error sending message:", error);
+          Alert.alert("Error", error.message || "Failed to send message");
+        } finally {
+          setIsLoading(false);
+          // Removed duplicate success alert here
+        }
+      };
 
     // Update the placeholder text based on current selection
     const getPlaceholderText = () => {
@@ -143,19 +209,56 @@ const ChatArea = ({
 
 
 
-    const handleReaction = (messageId, emoji) => {
-        if (!messageId || !emoji) return;
+    // const handleReaction = (messageId, emoji) => {
+    //     if (!messageId || !emoji) return;
 
-        setChannelMessages(prevMessages => ({
-            ...prevMessages,
-            [selectedChannel]: (prevMessages[selectedChannel] || []).map(message => {
-                if (message.id === messageId) {
-                    const reactions = { ...(message.reactions || {}) };
+    //     setChannelMessages(prevMessages => ({
+    //         ...prevMessages,
+    //         [selectedChannel]: (prevMessages[selectedChannel] || []).map(message => {
+    //             if (message.id === messageId) {
+    //                 const reactions = { ...(message.reactions || {}) };
                     
-                    if (!reactions[emoji]) {
-                        reactions[emoji] = ['currentUser'];
-                    } else {
-                        const userIndex = reactions[emoji].indexOf('currentUser');
+    //                 if (!reactions[emoji]) {
+    //                     reactions[emoji] = ['currentUser'];
+    //                 } else {
+    //                     const userIndex = reactions[emoji].indexOf('currentUser');
+    //                     if (userIndex > -1) {
+    //                         reactions[emoji] = reactions[emoji].filter(id => id !== 'currentUser');
+    //                         if (reactions[emoji].length === 0) {
+    //                             delete reactions[emoji];
+    //                         }
+    //                     } else {
+    //                         reactions[emoji] = [...reactions[emoji], 'currentUser'];
+    //                     }
+    //                 }
+
+    //                 return {
+    //                     ...message,
+    //                     reactions
+    //                 };
+    //             }
+    //             return message;
+    //         })
+    //     }));
+
+    //     setReactionPickerVisible(false);
+    //     setActiveMessageId(null);
+    // };
+    const handleReaction = async (messageId, emoji) => {
+        const messageRef = firestore()
+          .collection('chats')
+          .doc(selectedChannel || selectedDM?.id)
+          .collection('messages')
+          .doc(messageId);
+      
+        // Update reactions in Firestore
+        await firestore().runTransaction(async (transaction) => {
+          const doc = await transaction.get(messageRef);
+          const reactions = doc.data().reactions || {};
+          if (!reactions[emoji]) {
+            reactions[emoji] = [auth().currentUser.uid];
+          } else {
+            const userIndex = reactions[emoji].indexOf('currentUser');
                         if (userIndex > -1) {
                             reactions[emoji] = reactions[emoji].filter(id => id !== 'currentUser');
                             if (reactions[emoji].length === 0) {
@@ -166,17 +269,8 @@ const ChatArea = ({
                         }
                     }
 
-                    return {
-                        ...message,
-                        reactions
-                    };
-                }
-                return message;
-            })
-        }));
-
-        setReactionPickerVisible(false);
-        setActiveMessageId(null);
+        transaction.update(messageRef, { reactions });
+      });
     };
 
     const openReactionPicker = (messageId) => {
@@ -280,7 +374,7 @@ const ChatArea = ({
                 style={styles.messagesContainer}
                 onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
             >
-                {getCurrentMessages().map((message) => (
+                {messages.map((message) => (
                     <View 
                         key={message.id} 
                         style={[
@@ -302,7 +396,9 @@ const ChatArea = ({
                                 ]}>
                                     {message.sender}
                                 </Text>
-                                <Text style={styles.messageTime}>{message.time}</Text>
+                                <Text style={styles.messageTime}>
+                                    {message.createdAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </Text>
                             </View>
                             <Text style={[
                                 styles.messageText,
@@ -310,6 +406,8 @@ const ChatArea = ({
                             ]}>
                                 {message.text}
                             </Text>
+                            
+                            {/* Keep all your existing message UI features */}
                             {!message.isSystemMessage && (
                                 <>
                                     <View style={styles.messageActions}>
@@ -345,6 +443,8 @@ const ChatArea = ({
                                     )}
                                 </>
                             )}
+                            
+                            {/* File and image attachments */}
                             {message.isFile && (
                                 <View style={styles.fileMessage}>
                                     <MaterialIcon 

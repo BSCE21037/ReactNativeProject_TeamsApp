@@ -38,7 +38,6 @@ const SignInScreen = ({ navigation }) => {
           } catch (error) {
             console.log(error.message);
             
-            // More user-friendly error messages
             let errorMessage = "Login failed. Please try again.";
             switch (error.code) {
               case "auth/invalid-email":
@@ -78,7 +77,6 @@ const SignInScreen = ({ navigation }) => {
     //     const userSnap = await getDoc(userRef);
 
     //     if (!userSnap.exists()) {
-    //         // Add a new document to Firestore with user data
     //         await setDoc(userRef, {
     //         uid: user.uid,
     //         name: user.displayName || user.name,
@@ -107,10 +105,9 @@ const SignInScreen = ({ navigation }) => {
 
     return(
         <LinearGradient 
-            colors={['#FF0000', '#00FF00']} // Red to Green gradient
+            colors={['#FF0000', '#00FF00']}
             style={commonStyles.container}
         >
-            {/* Back Button */}
             <TouchableOpacity 
                 style={styles.backButton} 
                 onPress={() => navigation.goBack()}
@@ -120,7 +117,6 @@ const SignInScreen = ({ navigation }) => {
 
             <Text style={styles.title}>Welcome Back!</Text>
             
-            {/* Social Login Button */}
             <CustomPressable
                 title={
                     <View style={styles.googleButtonContent}>
