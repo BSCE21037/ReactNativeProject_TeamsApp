@@ -84,6 +84,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        manifestPlaceholders = [
+            appAuthRedirectScheme: 'com.teamsapp'
+        ]
     }
     signingConfigs {
         debug {
@@ -113,6 +116,7 @@ dependencies {
     implementation ("com.google.firebase:firebase-analytics")
     implementation platform("com.google.firebase:firebase-bom:33.11.0")
     // implementation ("com.google.firebase:firebase-auth")
+    implementation "net.openid:appauth:0.11.1" // For OAuth2 authentication
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

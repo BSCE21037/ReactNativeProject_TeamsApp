@@ -8,7 +8,14 @@ import * as ImagePicker from 'react-native-image-picker';
 import jira from '../services/jiraService';
 import firestore from '@react-native-firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
+// import { createIssue, searchIssues, getAuthToken } from '../services/jiraService';
+import Keychain from 'react-native-keychain';
+// import authenticateWithJira from '../services/jiraService';
+import * as jiraAPI from '../services/jiraAPI';
+import { authenticateWithJira, getAuthToken } from '../services/jiraService';
+//***************************************************************************************** */
 
+//**************************************************************************************** */
 const ChatArea = ({ 
     navigation,
     channelMessages,
@@ -146,62 +153,60 @@ const ChatArea = ({
         return 'Message';
     };
 
-    // const authenticateWithJira = async () => {
-    //     setIsAuthenticating(true);
-    //     try {
-    //       // You'll need to implement the OAuth dance here
-    //       // This is a simplified version - you'll need to adapt it
-    //       const response = await fetch('https://teamsapp.atlassian.net/jira/oauth');
-    //       const { token, secret } = await response.json();
-    //       setJiraTokens(token, secret);
-    //     } catch (error) {
-    //       Alert.alert('Authentication Failed', error.message);
-    //     } finally {
-    //       setIsAuthenticating(false);
-    //     }
-    //   };
-    
-
-
-    const handleJiraButtonPress = async () => {
-        if (!messageText.trim()) return;
-    
-        setIsLoading(true);
+    const fetchTasks = async () => {
         try {
-        //   // Get issue example
-        //   const issue = await jira.getIssue('SCRUM-1');
-          
-          // Or create a new issue
-          // Create a new issue
-    const response = await jira.createIssue({
-      fields: {
-        summary: messageText,
-        issuetype: {
-          name: 'Task'
-        },
-        project: {
-          key: 'SCRUM',
-        },
-      }
-    });
-    
-          const newMessage = {
-            id: Date.now().toString(),
-            sender: 'System',
-            text: `Created Jira Issue: ${response.key || response.id}`,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isSystemMessage: true
-          };
-    
-          updateMessages(newMessage);
-          setMessageText('');
+          const token = await getAuthToken(); // From secure storage
+          const result = await searchIssues(
+            'assignee = currentUser() AND status IN ("To Do", "In Progress")',
+            token
+          );
+          setTasks(result.issues);
         } catch (error) {
-            Alert.alert(
-            'Jira Error',
-            error.response?.data?.errorMessages?.join('\n') || 
-            error.response?.data?.message || 
-            error.message
-            );
+          Alert.alert('Error', error.message);
+        }
+      };
+
+
+      const handleJiraButtonPress = async () => {
+        if (!messageText.trim()) {
+          Alert.alert('Error', 'Please enter issue summary');
+          return;
+        }
+      
+        setIsLoading(true);
+        
+        try {
+          // Try to get existing token first
+          let token = await getAuthToken();
+          console.log('Fetched token:', token);
+          
+          // If no token, authenticate first
+          if (!token) {
+            console.log('No token found, authenticating...');
+            token = await authenticateWithJira();
+          }
+      
+          const issueData = {
+            fields: {
+              summary: messageText,
+              issuetype: { name: 'Task' },
+              project: { key: 'SCRUM' }
+            }
+          };
+      
+          const response = await jiraAPI.createIssue(issueData, token);
+          
+          Alert.alert('Success', `Created issue: ${response.key || response.id}`);
+          setMessageText('');
+          
+        } catch (error) {
+          console.error('Jira operation failed:', error);
+          Alert.alert(
+            'Error',
+            error.message.includes('401') 
+              ? 'Session expired. Please login again.' 
+              : error.message || 'Failed to create issue'
+          );
         } finally {
           setIsLoading(false);
         }
@@ -522,6 +527,12 @@ const ChatArea = ({
                         <TouchableOpacity style={styles.inputButton}>
                             <MaterialIcon name="format-bold" size={22} color="#616061" />
                         </TouchableOpacity>
+                        <TouchableOpacity 
+                            onPress={authenticateWithJira}
+                            style={styles.authButton}
+                            >
+                            <Text>Login to Jira</Text>
+                            </TouchableOpacity>
                     </View>
                 </View>
 
@@ -906,6 +917,17 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         alignItems: 'center',
         marginTop: 20,
+    },
+    authButton: {
+        backgroundColor: '#0052CC',
+        padding: 15,
+        borderRadius: 5,
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    authButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
     },
 });
 
