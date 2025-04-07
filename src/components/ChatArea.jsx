@@ -12,7 +12,8 @@ import { auth, db } from '../../firebaseConfig';
 import Keychain from 'react-native-keychain';
 // import authenticateWithJira from '../services/jiraService';
 import * as jiraAPI from '../services/jiraAPI';
-import { authenticateWithJira, getAuthToken } from '../services/jiraService';
+import { authenticateWithJira, getAuthToken, createIssue} from '../services/jiraService';
+
 //***************************************************************************************** */
 
 //**************************************************************************************** */
@@ -169,48 +170,58 @@ const ChatArea = ({
 
       const handleJiraButtonPress = async () => {
         if (!messageText.trim()) {
-          Alert.alert('Error', 'Please enter issue summary');
-          return;
+            Alert.alert('Error', 'Please enter issue summary');
+            return;
         }
-      
+    
         setIsLoading(true);
         
         try {
-          // Try to get existing token first
-          let token = await getAuthToken();
-          console.log('Fetched token:', token);
-          
-          // If no token, authenticate first
-          if (!token) {
-            console.log('No token found, authenticating...');
-            token = await authenticateWithJira();
-          }
-      
-          const issueData = {
-            fields: {
-              summary: messageText,
-              issuetype: { name: 'Task' },
-              project: { key: 'SCRUM' }
-            }
-          };
-      
-          const response = await jiraAPI.createIssue(issueData, token);
-          
-          Alert.alert('Success', `Created issue: ${response.key || response.id}`);
-          setMessageText('');
-          
+            // Create the issue
+            const response = await createIssue({
+                summary: messageText,
+                description: "Created from mobile app", // optional
+                projectKey: 'SCRUM' // or get from user input
+            });
+    
+            Alert.alert(
+                'Success', 
+                `Jira issue created: ${response.key}\n${response.self}`
+            );
+            
+            // Add a system message to the chat
+            const user = auth.currentUser;
+            const chatRef = firestore()
+                .collection('chats')
+                .doc(selectedChannel || selectedDM?.id)
+                .collection('messages');
+    
+            await chatRef.add({
+                text: `Created Jira issue: ${response.key} - ${messageText}`,
+                sender: 'System',
+                userId: 'system',
+                createdAt: firestore.FieldValue.serverTimestamp(),
+                isSystemMessage: true,
+                jiraIssue: {
+                    key: response.key,
+                    url: `https://teamsapp.atlassian.net/browse/${response.key}`
+                }
+            });
+    
+            setMessageText('');
         } catch (error) {
-          console.error('Jira operation failed:', error);
-          Alert.alert(
-            'Error',
-            error.message.includes('401') 
-              ? 'Session expired. Please login again.' 
-              : error.message || 'Failed to create issue'
-          );
+            console.error('Jira operation failed:', error);
+            let errorMessage = error.message || 'Failed to create issue';
+            
+            if (error.message.includes('401')) {
+                errorMessage = 'Jira authentication failed. Please check your API token in settings.';
+            }
+            
+            Alert.alert('Error', errorMessage);
         } finally {
-          setIsLoading(false);
+            setIsLoading(false);
         }
-      };
+    };
 
 
 
@@ -411,7 +422,16 @@ const ChatArea = ({
                             ]}>
                                 {message.text}
                             </Text>
-                            
+                            {message.jiraIssue && (
+                                <TouchableOpacity 
+                                    onPress={() => Linking.openURL(message.jiraIssue.url)}
+                                    style={styles.jiraIssueLink}
+                                >
+                                    <Text style={styles.jiraIssueText}>
+                                        🚀 Jira: {message.jiraIssue.key}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                             {/* Keep all your existing message UI features */}
                             {!message.isSystemMessage && (
                                 <>
@@ -928,6 +948,16 @@ const styles = StyleSheet.create({
     authButtonText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    jiraIssueLink: {
+        marginTop: 5,
+        padding: 5,
+        backgroundColor: '#E3F2FD',
+        borderRadius: 4,
+    },
+    jiraIssueText: {
+        color: '#0052CC',
+        fontWeight: '500',
     },
 });
 
