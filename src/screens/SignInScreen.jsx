@@ -33,13 +33,15 @@ const SignInScreen = ({ navigation }) => {
         });
         
         // Check if we already have Jira credentials
-        checkExistingJiraCredentials();
+        // checkExistingJiraCredentials();
       }, []);
 
       const checkExistingJiraCredentials = async () => {
         try {
-            const token = await AsyncStorage.getItem('jiraToken');
-            const email = await AsyncStorage.getItem('email');
+            // const token = await AsyncStorage.getItem('jiraToken');
+            // const email = await AsyncStorage.getItem('email');
+            const token = null;
+            const email = null;
             console.log('in checkExistingJiraCredentials , Jira Token:', token);
             console.log('in checkExistingJiraCredentials , Jira Email:', email);
             return { token, email }; // Always returns an object
@@ -243,7 +245,7 @@ const SignInScreen = ({ navigation }) => {
                 </TouchableOpacity>
             </View>
 
-            {!showJiraFields ? (
+            {/* {!showJiraFields ? (
                 <TouchableOpacity 
                     style={[
                         styles.jiraConnectButton,
@@ -296,7 +298,7 @@ const SignInScreen = ({ navigation }) => {
                         </TouchableOpacity>
                     </View>
                 </View>
-            )}
+            )} */}
         </LinearGradient>
     );
 };

@@ -547,12 +547,12 @@ const ChatArea = ({
                         <TouchableOpacity style={styles.inputButton}>
                             <MaterialIcon name="format-bold" size={22} color="#616061" />
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        {/* <TouchableOpacity 
                             onPress={authenticateWithJira}
                             style={styles.authButton}
                             >
                             <Text>Login to Jira</Text>
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
                     </View>
                 </View>
 
