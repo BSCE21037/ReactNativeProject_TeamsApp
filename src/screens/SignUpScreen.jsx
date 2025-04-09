@@ -63,17 +63,6 @@ const SignUpScreen = ({ navigation }) => {
 
             <Text style={styles.title}>Create your account</Text>
             
-            <CustomPressable
-                title={
-                    <View style={styles.googleButtonContent}>
-                        <Icon name="google" size={20} color="#8B3535" style={styles.googleIcon} /> {/* Google icon */}
-                        <Text style={styles.googleText}>CONTINUE WITH GOOGLE</Text>
-                    </View>
-                }
-                onPress={() => {}}
-                style={[styles.socialButton, styles.googleButton]}
-                textStyle={[styles.socialButtonText, styles.googleText]}
-            />
 
             <Text style={styles.orText}>OR SIGN UP WITH EMAIL</Text>
 

@@ -38,16 +38,14 @@ const SignInScreen = ({ navigation }) => {
 
       const checkExistingJiraCredentials = async () => {
         try {
-            // const token = await AsyncStorage.getItem('jiraToken');
-            // const email = await AsyncStorage.getItem('email');
             const token = null;
             const email = null;
             console.log('in checkExistingJiraCredentials , Jira Token:', token);
             console.log('in checkExistingJiraCredentials , Jira Email:', email);
-            return { token, email }; // Always returns an object
+            return { token, email };
         } catch (error) {
             console.log('Error checking Jira credentials:', error);
-            return { token: null, email: null }; // Return null values if error occurs
+            return { token: null, email: null };
         }
     };
 
@@ -60,23 +58,22 @@ const SignInScreen = ({ navigation }) => {
     
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            // console.log('User Signed In: ', userCredential);
-            
-            // Check if we have Jira credentials
             const credentials = await checkExistingJiraCredentials();
             
-            if (!credentials.token || !credentials.email) {
-                Alert.alert(
-                    'Info', 
-                    'You can connect to Jira now or later in settings',
-                    [
-                        {text: 'Connect Now', onPress: () => testJiraConnection(email, jiraToken)},
-                        {text: 'Later', onPress: () => navigation.navigate("Main")}
-                    ]
-                );
-            } else {
-                navigation.navigate("Main");
-            }
+            // if (!credentials.token || !credentials.email) {
+            //     Alert.alert(
+            //         'Info', 
+            //         'You can connect to Jira now or later in settings',
+            //         [
+            //             {text: 'Connect Now', onPress: () => },
+            //             {text: 'Later', onPress: () => navigation.navigate("Main")}
+            //         ]
+            //     );
+            // } else {
+            //     navigation.navigate("Main");
+            // }
+            testJiraConnection(email, jiraToken);
+            navigation.navigate("Main");
         } catch (error) {
             console.log(error.message);
             
@@ -187,7 +184,7 @@ const SignInScreen = ({ navigation }) => {
 
             <Text style={styles.title}>Welcome Back!</Text>
             
-            <CustomPressable
+            {/* <CustomPressable
                 title={
                     <View style={styles.googleButtonContent}>
                         <Icon name="google" size={20} color="#8B3535" style={styles.googleIcon} />
@@ -198,7 +195,7 @@ const SignInScreen = ({ navigation }) => {
                 textStyle={[styles.socialButtonText, styles.googleText]}
             />
 
-            <Text style={styles.orText}>OR LOG IN WITH EMAIL</Text>
+            <Text style={styles.orText}>OR LOG IN WITH EMAIL</Text> */}
 
             <CustomTextInput
                 value={email}
