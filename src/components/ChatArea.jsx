@@ -12,10 +12,11 @@ import { auth, db } from '../../firebaseConfig';
 import Keychain from 'react-native-keychain';
 // import authenticateWithJira from '../services/jiraService';
 import * as jiraAPI from '../services/jiraAPI';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { authenticateWithJira, getAuthToken, createIssue} from '../services/jiraService';
 
 //***************************************************************************************** */
-
+//! Very dangerous script
 //**************************************************************************************** */
 const ChatArea = ({ 
     navigation,
@@ -35,6 +36,7 @@ const ChatArea = ({
     const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
     const [activeMessageId, setActiveMessageId] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [name, setName] = useState('');
 
     const QUICK_REACTIONS = ['👍', '❤️', '😊', '😂', '🎉', '👏'];
     // Replace your existing message state and handlers with:
@@ -43,6 +45,26 @@ const ChatArea = ({
 
     // Load messages on mount
     useEffect(() => {
+        const fetchUserData = async () => {
+            const user = auth.currentUser;
+            if (user) {
+                const userDocRef = doc(db, "users", user.email);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    setName(userDocSnap.data().name);
+                }
+            }
+        };
+        
+        fetchUserData();
+        
+
+        // const userDocRef = doc(db, "users", user.email);
+        // const userDocSnap = await getDoc(userDocRef);
+
+        // const userName = userDocSnap.data().name;
+        // console.log("Fetched name:", userName);
+
         if (!selectedChannel && !selectedDM?.id){
             Alert.alert("Error", "No channel or DM selected");
             return;
@@ -78,14 +100,6 @@ const ChatArea = ({
 
 
     // // Helper function to get current messages
-    // const getCurrentMessages = () => {
-    //     if (selectedChannel) {
-    //         return channelMessages[selectedChannel] || [];
-    //     } else if (selectedDM) {
-    //         return dmMessages[selectedDM.id] || [];
-    //     }
-    //     return [];
-    // };
 
     // Helper function to update messages
     const updateMessages = (newMessage) => {
@@ -103,12 +117,15 @@ const ChatArea = ({
     };
 
     const handleSendMessage = async () => {
+        // const userName = await getData();
+
         console.log("Sending message:", messageText);
         console.log("Selected channel/DM:", selectedChannel || selectedDM?.id);
         if (!messageText.trim()) {
           Alert.alert("Error", "Message cannot be empty");
           return;
         }
+       
         
         const user = auth.currentUser;
         console.log("Current user:", user);
@@ -118,22 +135,23 @@ const ChatArea = ({
         }
       
         try {
-          setIsLoading(true);
+        //   setIsLoading(true);
           
           const chatRef = firestore()
             .collection('chats') // Removed incorrect db parameter
             .doc(selectedChannel || selectedDM?.id)
             .collection('messages');
-      
-          await chatRef.add({
+            setMessageText('');
+            await chatRef.add({
             text: messageText,
-            sender: user.displayName || user.email,
+            sender: name,
             userId: user.uid,
             createdAt: firestore.FieldValue.serverTimestamp(),
             isSystemMessage: false
           });
+
       
-          setMessageText('');
+          
         //   Alert.alert("Success", "Message sent successfully");
         } catch (error) {
           console.error("Error sending message:", error);
@@ -547,12 +565,12 @@ const ChatArea = ({
                         <TouchableOpacity style={styles.inputButton}>
                             <MaterialIcon name="format-bold" size={22} color="#616061" />
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        {/* <TouchableOpacity 
                             onPress={authenticateWithJira}
                             style={styles.authButton}
                             >
                             <Text>Login to Jira</Text>
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
                     </View>
                 </View>
 
