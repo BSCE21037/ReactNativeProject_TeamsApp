@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, FlatList } from 'react-native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const StandUpBot = () => {
   const [tasks, setTasks] = useState([]);
@@ -15,8 +16,8 @@ const StandUpBot = () => {
             fields: 'key,summary,status'
           },
           auth: {
-            username: 'bsce21037@itu.edu.pk',
-            password: 'ATATT3xFfGF0ylHNpv6KfoJ32tGHvOPDxIV49bcBorY_h9DffaJTyf9S7lk9SGMCpE0UJJHRr0gK9UlMY_QgExJe3AbpLHp45JW1duJ8wwLsvcwfAsTBtZgPjzQHzYXVXCR9YVHHbFQH1aKGZVficlYjmG2usmHNOMBckTQZWE1vnO6JgpqoA-U=729D00CE'
+            username: await AsyncStorage.getItem('email'),
+            password: await AsyncStorage.getItem('jiraToken')
           }
         }
       );
