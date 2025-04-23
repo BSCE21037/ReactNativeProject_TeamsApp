@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, Image } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, Image, Linking } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import EmojiSelector from 'react-native-emoji-selector';
@@ -446,7 +446,8 @@ const ChatArea = ({
                                     style={styles.jiraIssueLink}
                                 >
                                     <Text style={styles.jiraIssueText}>
-                                        🚀 Jira: {message.jiraIssue.key}
+                                    <MaterialIcon name="jira" size={22} color="#2684FF" />
+                                        Jira: {message.jiraIssue.key}
                                     </Text>
                                 </TouchableOpacity>
                             )}
@@ -487,7 +488,6 @@ const ChatArea = ({
                                 </>
                             )}
                             
-                            {/* File and image attachments */}
                             {message.isFile && (
                                 <View style={styles.fileMessage}>
                                     <MaterialIcon 
