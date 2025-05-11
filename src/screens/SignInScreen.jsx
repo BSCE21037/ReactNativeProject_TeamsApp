@@ -26,11 +26,6 @@ const SignInScreen = ({ navigation }) => {
     const [jiraConnected, setJiraConnected] = useState(false);
 
     useEffect(() => {
-        GoogleSignin.configure({
-          webClientId: WEB_CLIENT_ID,
-          offlineAccess: true,
-          forceCodeForRefreshToken: true,
-        });
         
         // Check if we already have Jira credentials
         // checkExistingJiraCredentials();
