@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from "react-native";
 import CustomTextInput from "../components/CustomSignIn";
 import CustomPressable from "../components/CustomWelcome";
@@ -38,31 +38,31 @@ const SignUpScreen = ({ navigation }) => {
                 name: name,
                 selectedTopics: [],
             });
-            
+
 
             //   navigation.navigate("Login"); // Navigate to login page
         } catch (error) {
             console.log(error.message);
             Alert.alert("Signup Failed", error.message);
         }
-        
+
     };
 
-    return(
-        <LinearGradient 
+    return (
+        <LinearGradient
             colors={['#FF0000', '#00FF00']}
             style={commonStyles.container}
         >
             {/* Back Button */}
-            <TouchableOpacity 
-                style={styles.backButton} 
+            <TouchableOpacity
+                style={styles.backButton}
                 onPress={() => navigation.goBack()}
             >
-                <Text style={styles.backButtonText}>←</Text>
+                <Icon name="arrow-left" size={20} color="white" />
             </TouchableOpacity>
 
             <Text style={styles.title}>Create your account</Text>
-            
+
 
             <Text style={styles.orText}>OR SIGN UP WITH EMAIL</Text>
 
@@ -73,6 +73,8 @@ const SignUpScreen = ({ navigation }) => {
                 placeholder="Name"
                 style={styles.inputContainer}
                 inputStyle={styles.input}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+
             />
             <CustomTextInput
                 value={email}
@@ -80,6 +82,8 @@ const SignUpScreen = ({ navigation }) => {
                 placeholder="Email address"
                 style={styles.inputContainer}
                 inputStyle={styles.input}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+
             />
             <CustomTextInput
                 value={password}
@@ -92,7 +96,7 @@ const SignUpScreen = ({ navigation }) => {
             />
 
             <View style={styles.privacyContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.checkbox}
                     onPress={() => setIsPrivacyAccepted(!isPrivacyAccepted)}
                 >
@@ -124,11 +128,15 @@ const styles = StyleSheet.create({
         top: 40,
         left: 20,
         zIndex: 1,
-        padding: 5,
-    },
-    backButtonText: {
-        fontSize: 24,
-        color: '#fff', // Changed to white
+        // padding: 10,
+        borderColor: "white",
+        borderWidth: 1,
+        borderRadius: 30,
+        width: 50,
+        height: 50,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.3)',
     },
     title: {
         fontSize: 28,
@@ -175,10 +183,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     input: {
-        padding: 15,
+        // padding: 15,
         fontSize: 16,
         color: '#fff',
-        height: '100%',
+        height: '140%',
         textAlignVertical: 'center',
     },
     privacyContainer: {

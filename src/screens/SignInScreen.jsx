@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Alert, TextInput, ActivityIndicator } from "react-native";
 import CustomTextInput from "../components/CustomSignIn";
 import CustomPressable from "../components/CustomWelcome";
@@ -14,7 +14,7 @@ import axios from 'axios';
 
 // Polyfill Buffer if not available
 if (typeof Buffer === 'undefined') {
-  global.Buffer = require('buffer').Buffer;
+    global.Buffer = require('buffer').Buffer;
 }
 
 const SignInScreen = ({ navigation }) => {
@@ -26,12 +26,17 @@ const SignInScreen = ({ navigation }) => {
     const [jiraConnected, setJiraConnected] = useState(false);
 
     useEffect(() => {
-        
+        GoogleSignin.configure({
+            webClientId: WEB_CLIENT_ID,
+            offlineAccess: true,
+            forceCodeForRefreshToken: true,
+        });
+
         // Check if we already have Jira credentials
         // checkExistingJiraCredentials();
-      }, []);
+    }, []);
 
-      const checkExistingJiraCredentials = async () => {
+    const checkExistingJiraCredentials = async () => {
         try {
             const token = null;
             const email = null;
@@ -44,17 +49,17 @@ const SignInScreen = ({ navigation }) => {
         }
     };
 
-    
+
     const handlePress = async () => {
         if (!email || !password) {
-            Alert.alert('Error','Please fill in all fields.');
+            Alert.alert('Error', 'Please fill in all fields.');
             return;
         }
-    
+
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const credentials = await checkExistingJiraCredentials();
-            
+
             // if (!credentials.token || !credentials.email) {
             //     Alert.alert(
             //         'Info', 
@@ -71,7 +76,7 @@ const SignInScreen = ({ navigation }) => {
             navigation.navigate("Main");
         } catch (error) {
             console.log(error.message);
-            
+
             let errorMessage = "Login failed. Please try again.";
             switch (error.code) {
                 case "auth/invalid-email":
@@ -85,7 +90,7 @@ const SignInScreen = ({ navigation }) => {
                     errorMessage = "Too many attempts. Please try again later.";
                     break;
             }
-            
+
             Alert.alert("Error", errorMessage);
         }
     };
@@ -107,7 +112,7 @@ const SignInScreen = ({ navigation }) => {
                     }
                 }
             );
-            
+
             console.log('Jira Connection Test Response:', response.data);
             await AsyncStorage.setItem('jiraToken', token);
             await AsyncStorage.setItem('email', email);
@@ -121,14 +126,14 @@ const SignInScreen = ({ navigation }) => {
                 data: error.response?.data,
                 message: error.message
             });
-            
+
             let errorMessage = 'Failed to connect to Jira';
             if (error.response?.status === 401) {
                 errorMessage = 'Authentication failed. Please check your email and API token.';
             } else if (error.response?.data?.errorMessages) {
                 errorMessage = error.response.data.errorMessages.join('\n');
             }
-            
+
             throw new Error(errorMessage);
         }
     };
@@ -140,20 +145,20 @@ const SignInScreen = ({ navigation }) => {
         }
 
         setIsConnectingToJira(true);
-        
+
         try {
             // Test the connection first
             await testJiraConnection(email, jiraToken);
-            
+
             // If successful, store the credentials
             await AsyncStorage.setItem('jiraToken', jiraToken);
             await AsyncStorage.setItem('email', email);
             console.log('Jira credentials saved successfully!');
-            
+
             setJiraConnected(true);
             Alert.alert('Success', 'Jira connection successful!');
             setShowJiraFields(false);
-            
+
             // Navigate to main screen after successful connection
             navigation.navigate("Main");
         } catch (error) {
@@ -165,20 +170,20 @@ const SignInScreen = ({ navigation }) => {
 
 
 
-    return(
-        <LinearGradient 
+    return (
+        <LinearGradient
             colors={['#FF0000', '#00FF00']}
             style={commonStyles.container}
         >
-            <TouchableOpacity 
-                style={styles.backButton} 
+            <TouchableOpacity
+                style={styles.backButton}
                 onPress={() => navigation.goBack()}
             >
-                <Text style={styles.backButtonText}>←</Text>
+                <Icon name="arrow-left" size={20} color="white" />
             </TouchableOpacity>
 
             <Text style={styles.title}>Welcome Back!</Text>
-            
+
             {/* <CustomPressable
                 title={
                     <View style={styles.googleButtonContent}>
@@ -198,6 +203,7 @@ const SignInScreen = ({ navigation }) => {
                 placeholder="Email address"
                 style={styles.inputContainer}
                 inputStyle={styles.input}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
             />
             <CustomTextInput
                 value={password}
@@ -210,14 +216,14 @@ const SignInScreen = ({ navigation }) => {
             />
 
             <CustomTextInput
-                            value={jiraToken}
-                            onChangeText={setJiraToken}
-                            placeholder="API TOKEN"
-                            secureTextEntry={true}
-                            style={styles.inputContainer}
-                            inputStyle={styles.input}
-                            placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                        />
+                value={jiraToken}
+                onChangeText={setJiraToken}
+                placeholder="API TOKEN"
+                secureTextEntry={true}
+                style={styles.inputContainer}
+                inputStyle={styles.input}
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            />
 
             <CustomPressable
                 title="LOG IN"
@@ -226,7 +232,7 @@ const SignInScreen = ({ navigation }) => {
                 textStyle={styles.loginButtonText}
             />
 
-            <TouchableOpacity onPress={() => {}}>
+            <TouchableOpacity onPress={() => { }}>
                 <Text style={styles.forgotPassword}>Forgot Password?</Text>
             </TouchableOpacity>
 
@@ -306,12 +312,17 @@ const styles = StyleSheet.create({
         top: 40,
         left: 20,
         zIndex: 1,
-        padding: 5,
+        // padding: 10,
+        borderColor: "white",
+        borderWidth: 1,
+        borderRadius: 30,
+        width: 50,
+        height: 50,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.3)',
     },
-    backButtonText: {
-        fontSize: 24,
-        color: '#fff', // Changed to white for better contrast
-    },
+
     title: {
         fontSize: 28,
         fontWeight: 'bold',
@@ -355,10 +366,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     input: {
-        padding: 15,
+        // padding: 15,
         fontSize: 16,
-        color: '#fff', // Changed to white
-        height: '100%',
+        color: '#fff',
+        height: '150%',
         textAlignVertical: 'center',
     },
     loginButton: {

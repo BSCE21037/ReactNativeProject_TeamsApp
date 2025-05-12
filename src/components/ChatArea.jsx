@@ -6,25 +6,33 @@ import EmojiSelector from 'react-native-emoji-selector';
 import DocumentPicker from '@react-native-documents/picker';
 import * as ImagePicker from 'react-native-image-picker';
 import jira from '../services/jiraService';
-import firestore from '@react-native-firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 // import { createIssue, searchIssues, getAuthToken } from '../services/jiraService';
-import Keychain from 'react-native-keychain';
 // import authenticateWithJira from '../services/jiraService';
 import * as jiraAPI from '../services/jiraAPI';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { authenticateWithJira, getAuthToken, createIssue} from '../services/jiraService';
+import {
+    doc,
+    getDoc,
+    collection,
+    addDoc,
+    onSnapshot,
+    orderBy,
+    serverTimestamp,
+    runTransaction,
+    query
+} from 'firebase/firestore';
+import { authenticateWithJira, getAuthToken, createIssue } from '../services/jiraService';
 
 //***************************************************************************************** */
 //! Very dangerous script
 //**************************************************************************************** */
-const ChatArea = ({ 
+const ChatArea = ({
     navigation,
     channelMessages,
     setChannelMessages,
     dmMessages,
     setDmMessages,
-    showEmojiPicker, 
+    showEmojiPicker,
     setShowEmojiPicker,
     toggleDrawer,
     selectedChannel,
@@ -55,9 +63,9 @@ const ChatArea = ({
                 }
             }
         };
-        
+
         fetchUserData();
-        
+
 
         // const userDocRef = doc(db, "users", user.email);
         // const userDocSnap = await getDoc(userDocRef);
@@ -65,38 +73,32 @@ const ChatArea = ({
         // const userName = userDocSnap.data().name;
         // console.log("Fetched name:", userName);
 
-        if (!selectedChannel && !selectedDM?.id){
+        if (!selectedChannel && !selectedDM?.id) {
             Alert.alert("Error", "No channel or DM selected");
             return;
         }
-      
-        const unsubscribe = firestore()
-          .collection('chats')
-          .doc(selectedChannel || selectedDM?.id)
-          .collection('messages')
-          .orderBy('createdAt', 'asc')
-          .onSnapshot(
+
+        const messagesRef = collection(db, 'chats', selectedChannel || selectedDM?.id, 'messages');
+        const unsubscribe = onSnapshot(
+            query(messagesRef, orderBy('createdAt', 'asc')),
             (snapshot) => {
-              const loadedMessages = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              }));
-              setMessages(loadedMessages);
+                const loadedMessages = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setMessages(loadedMessages);
             },
             (error) => {
-              if (error.code === 'permission-denied') {
-                Alert.alert("Permission Error", "Please login to view messages");
-              } else {
-                Alert.alert("Error", "Failed to load messages");
-              }
+                if (error.code === 'permission-denied') {
+                    Alert.alert("Permission Error", "Please login to view messages");
+                } else {
+                    Alert.alert("Error", "Failed to load messages");
+                }
             }
-          );
-          console.log("Attempting to send message...");
-            console.log("Selected channel/DM:", selectedChannel || selectedDM?.id);
-      
+        );
+
         return () => unsubscribe();
-        
-      }, [selectedChannel, selectedDM?.id]);
+    }, [selectedChannel, selectedDM?.id]);
 
 
     // // Helper function to get current messages
@@ -117,50 +119,34 @@ const ChatArea = ({
     };
 
     const handleSendMessage = async () => {
-        // const userName = await getData();
-
-        console.log("Sending message:", messageText);
-        console.log("Selected channel/DM:", selectedChannel || selectedDM?.id);
         if (!messageText.trim()) {
-          Alert.alert("Error", "Message cannot be empty");
-          return;
+            Alert.alert("Error", "Message cannot be empty");
+            return;
         }
-       
-        
-        const user = auth.currentUser;
-        console.log("Current user:", user);
-        if (!user) {
-          Alert.alert("Error", "You must be logged in to send messages");
-          return;
-        }
-      
-        try {
-        //   setIsLoading(true);
-          
-          const chatRef = firestore()
-            .collection('chats') // Removed incorrect db parameter
-            .doc(selectedChannel || selectedDM?.id)
-            .collection('messages');
-            setMessageText('');
-            await chatRef.add({
-            text: messageText,
-            sender: name,
-            userId: user.uid,
-            createdAt: firestore.FieldValue.serverTimestamp(),
-            isSystemMessage: false
-          });
 
-      
-          
-        //   Alert.alert("Success", "Message sent successfully");
-        } catch (error) {
-          console.error("Error sending message:", error);
-          Alert.alert("Error", error.message || "Failed to send message");
-        } finally {
-          setIsLoading(false);
-          // Removed duplicate success alert here
+        const user = auth.currentUser;
+        if (!user) {
+            Alert.alert("Error", "You must be logged in to send messages");
+            return;
         }
-      };
+
+        try {
+            const messagesRef = collection(db, 'chats', selectedChannel || selectedDM?.id, 'messages');
+            setMessageText('');
+            await addDoc(messagesRef, {
+                text: messageText,
+                sender: name,
+                userId: user.uid,
+                createdAt: serverTimestamp(),
+                isSystemMessage: false
+            });
+        } catch (error) {
+            console.error("Error sending message:", error);
+            Alert.alert("Error", error.message || "Failed to send message");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // Update the placeholder text based on current selection
     const getPlaceholderText = () => {
@@ -174,26 +160,26 @@ const ChatArea = ({
 
     const fetchTasks = async () => {
         try {
-          const token = await getAuthToken(); // From secure storage
-          const result = await searchIssues(
-            'assignee = currentUser() AND status IN ("To Do", "In Progress")',
-            token
-          );
-          setTasks(result.issues);
+            const token = await getAuthToken(); // From secure storage
+            const result = await searchIssues(
+                'assignee = currentUser() AND status IN ("To Do", "In Progress")',
+                token
+            );
+            setTasks(result.issues);
         } catch (error) {
-          Alert.alert('Error', error.message);
+            Alert.alert('Error', error.message);
         }
-      };
+    };
 
 
-      const handleJiraButtonPress = async () => {
+    const handleJiraButtonPress = async () => {
         if (!messageText.trim()) {
             Alert.alert('Error', 'Please enter issue summary');
             return;
         }
-    
+
         setIsLoading(true);
-        
+
         try {
             // Create the issue
             const response = await createIssue({
@@ -201,40 +187,42 @@ const ChatArea = ({
                 description: "Created from mobile app", // optional
                 projectKey: 'SCRUM' // or get from user input
             });
-    
+
             Alert.alert(
-                'Success', 
+                'Success',
                 `Jira issue created: ${response.key}\n${response.self}`
             );
-            
+
             // Add a system message to the chat
             const user = auth.currentUser;
-            const chatRef = firestore()
-                .collection('chats')
-                .doc(selectedChannel || selectedDM?.id)
-                .collection('messages');
-    
-            await chatRef.add({
+            const chatRef = collection(
+                db,
+                'chats',
+                selectedChannel || selectedDM?.id,
+                'messages'
+            );
+
+            await addDoc(chatRef, {
                 text: `Created Jira issue: ${response.key} - ${messageText}`,
                 sender: 'System',
                 userId: 'system',
-                createdAt: firestore.FieldValue.serverTimestamp(),
+                createdAt: serverTimestamp(),
                 isSystemMessage: true,
                 jiraIssue: {
                     key: response.key,
                     url: `https://teamsapp.atlassian.net/browse/${response.key}`
                 }
             });
-    
+
             setMessageText('');
         } catch (error) {
             console.error('Jira operation failed:', error);
             let errorMessage = error.message || 'Failed to create issue';
-            
+
             if (error.message.includes('401')) {
                 errorMessage = 'Jira authentication failed. Please check your API token in settings.';
             }
-            
+
             Alert.alert('Error', errorMessage);
         } finally {
             setIsLoading(false);
@@ -251,7 +239,7 @@ const ChatArea = ({
     //         [selectedChannel]: (prevMessages[selectedChannel] || []).map(message => {
     //             if (message.id === messageId) {
     //                 const reactions = { ...(message.reactions || {}) };
-                    
+
     //                 if (!reactions[emoji]) {
     //                     reactions[emoji] = ['currentUser'];
     //                 } else {
@@ -279,32 +267,31 @@ const ChatArea = ({
     //     setActiveMessageId(null);
     // };
     const handleReaction = async (messageId, emoji) => {
-        const messageRef = firestore()
-          .collection('chats')
-          .doc(selectedChannel || selectedDM?.id)
-          .collection('messages')
-          .doc(messageId);
-      
-        // Update reactions in Firestore
-        await firestore().runTransaction(async (transaction) => {
-          const doc = await transaction.get(messageRef);
-          const reactions = doc.data().reactions || {};
-          if (!reactions[emoji]) {
-            reactions[emoji] = [auth().currentUser.uid];
-          } else {
-            const userIndex = reactions[emoji].indexOf('currentUser');
-                        if (userIndex > -1) {
-                            reactions[emoji] = reactions[emoji].filter(id => id !== 'currentUser');
-                            if (reactions[emoji].length === 0) {
-                                delete reactions[emoji];
-                            }
-                        } else {
-                            reactions[emoji] = [...reactions[emoji], 'currentUser'];
-                        }
-                    }
+        const messageRef = doc(db, 'chats', selectedChannel || selectedDM?.id, 'messages', messageId);
 
-        transaction.update(messageRef, { reactions });
-      });
+        await runTransaction(db, async (transaction) => {
+            const messageDoc = await transaction.get(messageRef);
+            if (!messageDoc.exists()) {
+                throw new Error("Message does not exist!");
+            }
+
+            const reactions = messageDoc.data().reactions || {};
+            if (!reactions[emoji]) {
+                reactions[emoji] = [auth.currentUser.uid];
+            } else {
+                const userIndex = reactions[emoji].indexOf(auth.currentUser.uid);
+                if (userIndex > -1) {
+                    reactions[emoji] = reactions[emoji].filter(id => id !== auth.currentUser.uid);
+                    if (reactions[emoji].length === 0) {
+                        delete reactions[emoji];
+                    }
+                } else {
+                    reactions[emoji] = [...reactions[emoji], auth.currentUser.uid];
+                }
+            }
+
+            transaction.update(messageRef, { reactions });
+        });
     };
 
     const openReactionPicker = (messageId) => {
@@ -323,10 +310,10 @@ const ChatArea = ({
                 type: [DocumentPicker.types.allFiles],
                 allowMultiSelection: false,
             });
-            
+
             const file = result[0];
             Alert.alert('File Selected', `Name: ${file.name}\nSize: ${file.size} bytes`);
-            
+
             const newMessage = {
                 id: Date.now().toString(),
                 sender: 'Your Name',
@@ -364,7 +351,7 @@ const ChatArea = ({
                 Alert.alert('Error', 'Error picking the image');
             } else {
                 const asset = response.assets[0];
-                
+
                 const newMessage = {
                     id: Date.now().toString(),
                     sender: 'Your Name',
@@ -386,7 +373,7 @@ const ChatArea = ({
             {/* Channel Header */}
             <View style={styles.channelHeader}>
                 <View style={styles.channelHeaderLeft}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={() => toggleDrawer(true)}
                         style={styles.menuButton}
                     >
@@ -403,14 +390,14 @@ const ChatArea = ({
             </View>
 
             {/* Messages Area */}
-            <ScrollView 
+            <ScrollView
                 ref={scrollViewRef}
                 style={styles.messagesContainer}
                 onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
             >
                 {messages.map((message) => (
-                    <View 
-                        key={message.id} 
+                    <View
+                        key={message.id}
                         style={[
                             styles.messageItem,
                             message.isSystemMessage && styles.systemMessageItem
@@ -441,12 +428,12 @@ const ChatArea = ({
                                 {message.text}
                             </Text>
                             {message.jiraIssue && (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => Linking.openURL(message.jiraIssue.url)}
                                     style={styles.jiraIssueLink}
                                 >
                                     <Text style={styles.jiraIssueText}>
-                                    <MaterialIcon name="jira" size={22} color="#2684FF" />
+                                        <MaterialIcon name="jira" size={22} color="#2684FF" />
                                         Jira: {message.jiraIssue.key}
                                     </Text>
                                 </TouchableOpacity>
@@ -455,7 +442,7 @@ const ChatArea = ({
                             {!message.isSystemMessage && (
                                 <>
                                     <View style={styles.messageActions}>
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={styles.reactionButton}
                                             onPress={() => openReactionPicker(message.id)}
                                         >
@@ -471,8 +458,8 @@ const ChatArea = ({
                                     {Object.keys(message.reactions || {}).length > 0 && (
                                         <View style={styles.reactionsContainer}>
                                             {Object.entries(message.reactions).map(([emoji, users]) => (
-                                                <TouchableOpacity 
-                                                    key={emoji} 
+                                                <TouchableOpacity
+                                                    key={emoji}
                                                     style={[
                                                         styles.reactionBadge,
                                                         users.includes('currentUser') && styles.reactionBadgeSelected
@@ -487,13 +474,13 @@ const ChatArea = ({
                                     )}
                                 </>
                             )}
-                            
+
                             {message.isFile && (
                                 <View style={styles.fileMessage}>
-                                    <MaterialIcon 
-                                        name="file-document-outline" 
-                                        size={24} 
-                                        color="#616061" 
+                                    <MaterialIcon
+                                        name="file-document-outline"
+                                        size={24}
+                                        color="#616061"
                                         style={styles.fileIcon}
                                     />
                                     <Text style={styles.fileName}>{message.fileName}</Text>
@@ -503,7 +490,7 @@ const ChatArea = ({
                                 </View>
                             )}
                             {message.isImage && (
-                                <Image 
+                                <Image
                                     source={{ uri: message.imageUri }}
                                     style={{ width: 200, height: 200, borderRadius: 8, marginTop: 4 }}
                                     resizeMode="cover"
@@ -526,23 +513,23 @@ const ChatArea = ({
                             onChangeText={setMessageText}
                             onSubmitEditing={handleSendMessage}
                         />
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.jiraButton}
                             onPress={handleJiraButtonPress}
                             disabled={isLoading}
                         >
                             <MaterialIcon name="jira" size={22} color="#2684FF" />
                             <Text style={styles.jiraButtonText}>
-                            {isLoading ? 'Working with Jira...' : 'Jira'}
+                                {isLoading ? 'Working with Jira...' : 'Jira'}
                             </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.standupButton}
                             onPress={() => navigation.navigate('StandUpBot')}
                         >
                             <Text style={styles.jiraButtonText}>Daily Stand-Up</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.sendButton}
                             onPress={handleSendMessage}
                         >
@@ -550,13 +537,13 @@ const ChatArea = ({
                         </TouchableOpacity>
                     </View>
                     <View style={styles.inputActions}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.inputButton}
                             onPress={() => setShowFilePicker(true)}
                         >
                             <Icon name="attach" size={22} color="#616061" />
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.inputButton}
                             onPress={() => setShowEmojiPicker(!showEmojiPicker)}
                         >
@@ -610,7 +597,7 @@ const ChatArea = ({
                         setActiveMessageId(null);
                     }}
                 >
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={styles.modalOverlay}
                         activeOpacity={1}
                         onPress={() => {
@@ -644,21 +631,21 @@ const ChatArea = ({
                 animationType="slide"
                 onRequestClose={() => setShowFilePicker(false)}
             >
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.modalOverlay}
                     activeOpacity={1}
                     onPress={() => setShowFilePicker(false)}
                 >
                     <View style={styles.modalContent}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.modalOption}
                             onPress={handleDocumentPick}
                         >
                             <MaterialIcon name="file-document-outline" size={24} color="#616061" />
                             <Text style={styles.modalOptionText}>Document</Text>
                         </TouchableOpacity>
-                        
-                        <TouchableOpacity 
+
+                        <TouchableOpacity
                             style={styles.modalOption}
                             onPress={handleImagePick}
                         >
@@ -675,15 +662,22 @@ const ChatArea = ({
 const styles = StyleSheet.create({
     mainContent: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#F8F9FA',
     },
     channelHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
-        borderBottomColor: '#E2E2E2',
+        borderBottomColor: '#E9ECEF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 2,
     },
     channelHeaderLeft: {
         flexDirection: 'row',
@@ -691,105 +685,131 @@ const styles = StyleSheet.create({
     },
     channelHeaderText: {
         fontSize: 18,
-        fontWeight: 'bold',
-        marginLeft: 8,
+        fontWeight: '600',
+        marginLeft: 10,
+        color: '#212529',
     },
     channelHeaderRight: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     headerIcon: {
-        marginLeft: 16,
+        marginLeft: 20,
+        color: '#6C757D',
     },
     messagesContainer: {
         flex: 1,
-        padding: 16,
+        paddingHorizontal: 12,
+        paddingTop: 8,
+        backgroundColor: '#F8F9FA',
     },
     messageItem: {
         flexDirection: 'row',
-        marginBottom: 16,
+        marginBottom: 12,
+        paddingHorizontal: 8,
     },
     messageContent: {
         flex: 1,
-    },
-    messageSender: {
-        fontWeight: 'bold',
-        marginBottom: 4,
-        color: '#1D1C1D',
-    },
-    messageText: {
-        color: '#1D1C1D',
-        lineHeight: 20,
-    },
-    inputContainer: {
-        padding: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#E2E2E2',
-    },
-    inputWrapper: {
-        flexDirection: 'column',
-        backgroundColor: '#F8F8F8',
-        borderWidth: 1,
-        borderColor: '#E2E2E2',
-        borderRadius: 4,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    input: {
-        flex: 1,
-        backgroundColor: '#F8F8F8',
-        padding: 12,
-        fontSize: 15,
-        color: '#000000',
-    },
-    inputActions: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        padding: 8,
-    },
-    inputButton: {
-        padding: 8,
-    },
-    menuButton: {
-        padding: 8,
-        marginRight: 8,
+        marginLeft: 10,
     },
     messageHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        marginBottom: 4,
+    },
+    messageSender: {
+        fontWeight: '600',
+        color: '#212529',
+        fontSize: 15,
+    },
+    messageText: {
+        color: '#495057',
+        lineHeight: 22,
+        fontSize: 15,
     },
     messageTime: {
         fontSize: 12,
-        color: '#616061',
+        color: '#6C757D',
         marginLeft: 8,
     },
     messageActions: {
         flexDirection: 'row',
-        marginTop: 8,
+        marginTop: 6,
     },
     reactionButton: {
-        padding: 4,
-        marginRight: 16,
+        padding: 6,
+        marginRight: 12,
+        borderRadius: 4,
+    },
+    inputContainer: {
+        padding: 12,
+        backgroundColor: '#FFFFFF',
+        borderTopWidth: 1,
+        borderTopColor: '#E9ECEF',
+    },
+    inputWrapper: {
+        flexDirection: 'column',
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#DEE2E6',
+        borderRadius: 24,
+        paddingHorizontal: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
+    },
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        minHeight: 48,
+    },
+    input: {
+        flex: 1,
+        paddingVertical: 12,
+        fontSize: 16,
+        color: '#212529',
+        maxHeight: 120,
+        paddingHorizontal: 8,
+    },
+    inputActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#E9ECEF',
+    },
+    inputButton: {
+        padding: 8,
+        borderRadius: 20,
+    },
+    menuButton: {
+        padding: 6,
+        marginRight: 8,
+        borderRadius: 20,
+        backgroundColor: '#E9ECEF',
     },
     jiraButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#DEEBFF',
-        padding: 8,
-        borderRadius: 4,
-        marginRight: 8,
+        backgroundColor: '#E7F1FF',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 16,
+        marginLeft: 8,
     },
     jiraButtonText: {
-        color: '#2684FF',
-        fontSize: 12,
-        fontWeight: '600',
-        marginLeft: 4,
+        color: '#0D6EFD',
+        fontSize: 14,
+        fontWeight: '500',
+        marginLeft: 6,
     },
     sendButton: {
-        padding: 8,
-        marginRight: 4,
+        padding: 10,
+        marginLeft: 8,
+        backgroundColor: '#0D6EFD',
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -799,39 +819,34 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     systemMessageContent: {
-        backgroundColor: '#E8F5E9',
+        backgroundColor: '#E6F9ED',
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 12,
         alignSelf: 'center',
         maxWidth: '90%',
     },
     systemMessageText: {
-        color: '#2E7D32',
+        color: '#0F5132',
         fontWeight: '500',
         textAlign: 'center',
-    },
-    systemMessageSender: {
-        display: 'none',
+        fontSize: 14,
     },
     emojiPickerContainer: {
         position: 'absolute',
         bottom: '100%',
         left: 0,
         right: 0,
-        height: 300,
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        height: 340,
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
         borderWidth: 1,
-        borderColor: '#E2E2E2',
+        borderColor: '#E9ECEF',
         shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: -2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 10,
     },
     emojiPicker: {
         flex: 1,
@@ -846,51 +861,32 @@ const styles = StyleSheet.create({
     reactionBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F0F0F0',
-        borderRadius: 12,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
+        backgroundColor: '#F8F9FA',
+        borderRadius: 16,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
         borderWidth: 1,
-        borderColor: '#E2E2E2',
+        borderColor: '#E9ECEF',
         margin: 4,
     },
     reactionBadgeSelected: {
-        backgroundColor: '#E8F5E9',
-        borderColor: '#2E7D32',
+        backgroundColor: '#E7F1FF',
+        borderColor: '#0D6EFD',
     },
     reactionCount: {
-        marginLeft: 4,
+        marginLeft: 6,
         fontSize: 12,
-        color: '#616061',
-    },
-    reactionPickerContainer: {
-        position: 'absolute',
-        left: 16,
-        right: 16,
-        height: 250,
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#E2E2E2',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-        overflow: 'hidden',
+        color: '#495057',
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
         padding: 16,
         paddingBottom: 32,
     },
@@ -898,85 +894,107 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
-        borderRadius: 8,
+        borderRadius: 12,
+        backgroundColor: '#F8F9FA',
+        marginBottom: 12,
     },
     modalOptionText: {
         marginLeft: 16,
         fontSize: 16,
-        color: '#1D1C1D',
+        color: '#212529',
+        fontWeight: '500',
     },
     fileMessage: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F8F8F8',
-        padding: 8,
-        borderRadius: 4,
-        marginTop: 4,
+        backgroundColor: '#F8F9FA',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 8,
+        borderWidth: 1,
+        borderColor: '#E9ECEF',
     },
     fileIcon: {
-        marginRight: 8,
+        marginRight: 12,
+        color: '#495057',
     },
     fileName: {
         flex: 1,
-        color: '#1D1C1D',
+        color: '#212529',
+        fontSize: 14,
+        fontWeight: '500',
     },
     fileSize: {
-        color: '#616061',
+        color: '#6C757D',
         fontSize: 12,
         marginLeft: 8,
     },
     quickReactionsContainer: {
         flexDirection: 'row',
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFFFF',
         borderRadius: 24,
-        padding: 8,
-        position: 'absolute',
-        bottom: '40%',
+        padding: 12,
+        marginBottom: 20,
         alignSelf: 'center',
         shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
         elevation: 5,
     },
     quickReactionButton: {
-        padding: 8,
-        marginHorizontal: 4,
+        padding: 10,
+        marginHorizontal: 6,
+        borderRadius: 20,
+        backgroundColor: '#F8F9FA',
     },
     emojiText: {
         fontSize: 24,
     },
     standupButton: {
-        backgroundColor: '#0052CC',
-        padding: 15,
-        borderRadius: 5,
-        alignItems: 'center',
-        marginTop: 20,
-    },
-    authButton: {
-        backgroundColor: '#0052CC',
-        padding: 15,
-        borderRadius: 5,
-        alignItems: 'center',
-        marginTop: 20,
-    },
-    authButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
+        backgroundColor: '#0D6EFD',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 16,
+        marginLeft: 8,
     },
     jiraIssueLink: {
-        marginTop: 5,
-        padding: 5,
-        backgroundColor: '#E3F2FD',
-        borderRadius: 4,
+        marginTop: 8,
+        padding: 10,
+        backgroundColor: '#E7F1FF',
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     jiraIssueText: {
-        color: '#0052CC',
+        color: '#0D6EFD',
         fontWeight: '500',
+        marginLeft: 6,
+    },
+    // New styles for message bubbles
+    messageBubble: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#E9ECEF',
+    },
+    systemBubble: {
+        backgroundColor: '#E6F9ED',
+        borderColor: '#C3E6CB',
+    },
+    // Avatar styles
+    avatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#E9ECEF',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarText: {
+        color: '#6C757D',
+        fontWeight: 'bold',
     },
 });
-
 export default ChatArea;
